@@ -10,11 +10,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   await deploy("SantasList", {
     from: deployer,
-    args: [
-      [...listParticipants.slice(0, 5)],
-      [...listParticipants.slice(5, 15)],
-      hre.ethers.utils.parseEther("0.1"),
-    ],
+    args: [[...listParticipants.slice(0, 2)]],
     log: true,
   });
 };

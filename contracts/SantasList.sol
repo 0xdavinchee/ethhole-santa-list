@@ -1,8 +1,6 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
-import "hardhat/console.sol";
-
 contract SantasList {
     struct NiceLister {
         uint256 feesWithdrawn;
@@ -12,27 +10,79 @@ contract SantasList {
     mapping(address => NiceLister) public niceList;
     mapping(address => bool) public naughtyList;
 
-    uint256 public feeAmount;
+    // a twist where you are incentivized to get on the nice list as early as possible
+    uint256 public feeAmount = 0.01 ether;
     uint256 public numNiceListers;
     uint256 public totalFeesAccrued;
     address private owner;
 
-    constructor(
-        address[] memory _niceList,
-        address[] memory _naughtyList,
-        uint256 _feeAmount
-    ) {
-        feeAmount = _feeAmount;
+    event NewNiceLister(address niceLister, uint256 feePaid);
+    event NewNaughtyLister(address naughtyLister);
+
+    constructor(address[] memory _naughtyList) {
         owner = msg.sender;
-        for (uint256 i = 0; i < _niceList.length; i++) {
-            niceList[_niceList[i]] = NiceLister(0, true);
-        }
         for (uint256 i = 0; i < _naughtyList.length; i++) {
-            require(
-                niceList[_naughtyList[i]].valid == false,
-                "This address is on the nice list."
-            );
             naughtyList[_naughtyList[i]] = true;
+            emit NewNaughtyLister(_naughtyList[i]);
         }
     }
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "You are not the list owner.");
+        _;
+    }
+
+    function addToNaughtyList(address _address) external onlyOwner {
+        require(
+            naughtyList[_address] == false,
+            "This address is already on the naughty list."
+        );
+        require(
+            niceList[_address].valid == false,
+            "This address is on the nice list."
+        );
+        require(
+            _address != msg.sender,
+            "You are not allowed to add yourself to the naughty list."
+        );
+
+        naughtyList[_address] = true;
+        emit NewNaughtyLister(_address);
+    }
+
+    function joinNiceList() external payable {
+        require(
+            niceList[msg.sender].valid == false,
+            "You are already on the nice list."
+        );
+        require(
+            naughtyList[msg.sender] == true,
+            "You aren't on the naughty list."
+        );
+        require(
+            msg.value == feeAmount,
+            "You must pay the fee amount to get on the nice list."
+        );
+
+        niceList[msg.sender] = NiceLister(0, true);
+        naughtyList[msg.sender] = false;
+        numNiceListers += 1;
+        totalFeesAccrued += msg.value;
+        feeAmount = 0.01 ether * (numNiceListers + 1)**2;
+
+        emit NewNiceLister(msg.sender, msg.value);
+    }
+
+    function withdrawShareOfFees() external payable {
+        require(niceList[msg.sender].valid, "You aren't on the nice list.");
+        uint256 withdrawableAmount =
+            totalFeesAccrued /
+                numNiceListers -
+                niceList[msg.sender].feesWithdrawn;
+        require(withdrawableAmount > 0, "You have withdrawn your share.");
+        (bool sent, ) = msg.sender.call{value: withdrawableAmount}("");
+        require(sent, "Unable to withdraw funds.");
+    }
+
+    receive() external payable {}
 }

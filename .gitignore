@@ -1,3 +1,4 @@
+.env
 node_modules
 
 #Test files
@@ -8,3 +9,4 @@ coverage.json
 cache
 artifacts
 typechain
+deployments

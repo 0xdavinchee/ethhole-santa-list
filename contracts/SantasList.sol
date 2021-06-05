@@ -15,11 +15,10 @@ contract SantasList {
     mapping(address => NiceLister) public niceList;
     mapping(address => bool) public naughtyList;
 
-    // a twist where you are incentivized to get on the nice list as early as possible
     uint256 public feeAmount = 0.01 ether;
     uint256 public numNiceListers;
     uint256 public totalFeesAccrued;
-    address private owner;
+    address public owner;
 
     event NewNiceLister(address niceLister, uint256 feePaid);
     event NewNaughtyLister(address naughtyLister);
@@ -109,6 +108,9 @@ contract SantasList {
 
     function getOwnerWithdrawableAmount() public view returns (uint256) {
         uint256 ownerAmount = totalFeesAccrued;
+        if (address(this).balance == 0) {
+            return 0;
+        }
         for (uint256 i = 0; i < niceListAddresses.length; i++) {
             uint256 niceListWithdrawableAmount =
                 _getWithdrawableAmount(niceListAddresses[i]);
@@ -128,11 +130,12 @@ contract SantasList {
         view
         returns (uint256)
     {
-        uint256 averageWithdrawalAmount =
-            address(this).balance / numNiceListers;
+        (, uint256 averageWithdrawalAmount) =
+            address(this).balance.tryDiv(numNiceListers);
         return
             address(this).balance == 0 ||
-                averageWithdrawalAmount < niceList[_address].feesWithdrawn
+                averageWithdrawalAmount < niceList[_address].feesWithdrawn ||
+                !niceList[_address].valid
                 ? 0
                 : averageWithdrawalAmount.sub(niceList[_address].feesWithdrawn);
     }
